@@ -412,6 +412,111 @@ class Fetcher:
 
         os.rename(temp_file, output_path)
 
+    def resolve_sources(self, metadata: Path) -> list[dict]:
+        """Resolve all sources to HTTP URLs and return as JSON-serializable list."""
+        region = Region(json.load(open(metadata, "r")))
+        metadata_filename = metadata.name
+        region_name = metadata_filename[:metadata_filename.rfind('.')]
+
+        download_dir = Path(os.environ.get("DOWNLOADS_DIR", "downloads/"))
+        outdir = Path("out/")
+
+        sources = []
+        for source in region.sources:
+            if source.function:
+                source = getattr(region_helpers, source.function)(source)
+
+            if source.skip:
+                continue
+
+            if source.spec != "gtfs" and source.spec != "netex":
+                continue
+
+            validate_source_name(source.name)
+            download_name = f"{region_name}_{source.name}.{source.spec}.zip"
+
+            resolved = self.resolve_database_sources(source)
+
+            # Build source info for JSON output
+            source_info = {
+                "name": source.name,
+                "region": region_name,
+                "spec": source.spec,
+                "download_name": download_name,
+                "download_path": str(download_dir.absolute() / download_name),
+                "output_path": str(outdir.absolute() / download_name),
+            }
+
+            match resolved:
+                case HttpSource():
+                    source_info["url"] = resolved.url
+                    source_info["url_override"] = resolved.url_override
+                    source_info["cache_url"] = resolved.cache_url
+                    source_info["headers"] = resolved.options.headers
+                    source_info["ignore_tls_errors"] = resolved.options.ignore_tls_errors
+                    source_info["fetch_interval_days"] = resolved.options.fetch_interval_days
+                    source_info["method"] = resolved.options.method
+                    source_info["request_body"] = resolved.options.request_body
+                case _:
+                    continue
+
+            sources.append(source_info)
+
+        return sources
+
+    def postprocess_only(self, metadata: Path) -> int:
+        """Only run postprocessing on already-downloaded files."""
+        region = Region(json.load(open(metadata, "r")))
+        metadata_filename = metadata.name
+        region_name = metadata_filename[:metadata_filename.rfind('.')]
+
+        errors = 0
+
+        outdir = Path("out/")
+        if not outdir.exists():
+            os.mkdir(outdir)
+
+        download_dir = Path(os.environ.get("DOWNLOADS_DIR", "downloads/"))
+
+        for source in region.sources:
+            if source.function:
+                source = getattr(region_helpers, source.function)(source)
+
+            if source.skip:
+                continue
+
+            if source.spec != "gtfs" and source.spec != "netex":
+                continue
+
+            if source.license.spdx_identifier:
+                validate_spdx_identifier(self.licensing, source.license.spdx_identifier)
+
+            validate_source_name(source.name)
+            download_name = f"{region_name}_{source.name}.{source.spec}.zip"
+
+            download_path = download_dir.absolute() / download_name
+            output_path = outdir.absolute() / download_name
+
+            # Skip if download doesn't exist
+            if not download_path.exists():
+                continue
+
+            # Skip if output already exists and is newer than download
+            if output_path.exists():
+                if output_path.stat().st_mtime >= download_path.stat().st_mtime:
+                    continue
+
+            print(f"Postprocessing {region_name}-{source.name} with gtfsclean…")
+            sys.stdout.flush()
+
+            try:
+                self.postprocess(source, download_path, output_path)
+            except Exception as e:
+                eprint(f"Error: Could not postprocess {region_name}-{source.name}: {e}")
+                errors += 1
+
+        return errors
+
     def fetch(self, metadata: Path) -> int:
         region = Region(json.load(open(metadata, "r")))
         metadata_filename = metadata.name
@@ -451,9 +556,9 @@ class Fetcher:
             if source.spec != "gtfs" and source.spec != "netex":
                 continue
 
-            download_dir = Path("downloads/")
+            download_dir = Path(os.environ.get("DOWNLOADS_DIR", "downloads/"))
             if not download_dir.exists():
-                os.mkdir(download_dir)
+                os.makedirs(download_dir, exist_ok=True)
 
             download_path = download_dir.absolute() / download_name
             output_path = outdir.absolute() / download_name
@@ -488,11 +593,25 @@ class Fetcher:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Transitous GTFS feed fetcher and post-processor.')
     parser.add_argument('metadata_file', metavar='metadata-file', type=str, help='Region metadata file to fetch feeds from')
+    parser.add_argument('--resolve-sources', action='store_true', help='Output resolved sources as JSON (no download)')
+    parser.add_argument('--postprocess-only', action='store_true', help='Only postprocess already-downloaded files')
     arguments = parser.parse_args()
 
     fetcher = Fetcher()
 
-    errors = fetcher.fetch(Path(arguments.metadata_file))
+    if arguments.resolve_sources:
+        # Output resolved sources as JSON for external downloaders
+        sources = fetcher.resolve_sources(Path(arguments.metadata_file))
+        print(json.dumps(sources, indent=2))
+        sys.exit(0)
+
+    if arguments.postprocess_only:
+        errors = fetcher.postprocess_only(Path(arguments.metadata_file))
+    else:
+        errors = fetcher.fetch(Path(arguments.metadata_file))
+
     if errors > 0:
         eprint(f"Error: {errors} errors occurred during fetching.")
-        sys.exit(1)
+        allow_errors = os.environ.get("ALLOW_FETCH_ERRORS", "").lower() in {"1", "true", "yes", "on"}
+        if not allow_errors:
+            sys.exit(1)

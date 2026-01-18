@@ -32,6 +32,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Transitous MOTIS configuration generator.')
     parser.add_argument('--import-only', action='store_true', help='Generate configuration for importing only.')
     parser.add_argument('--skip-missing-files', action='store_true', help='Do not generate entry for missing GTFS files')
+    parser.add_argument('--no-tiles', action='store_true', help='Disable tiles generation (saves memory)')
+    parser.add_argument('--osm', type=str, help='Override the OSM file path in the config')
+    parser.add_argument('--coastline', type=str, help='Override the coastline file path in the config')
     parser.add_argument('regions', type=str, help='Only generate configuration for the given region(s) (leave empty for all regions, globs are supported)', nargs="*")
     arguments = parser.parse_args()
 
@@ -57,12 +60,27 @@ if __name__ == "__main__":
         if web_folder:
             config["server"]["web_folder"] = web_folder
 
-        if arguments.import_only:
-            config.pop("tiles")
+        if arguments.osm:
+            config["osm"] = arguments.osm
         else:
+            # No OSM file provided - disable OSM-dependent features
+            config.pop("osm", None)
+            config.pop("tiles", None)
+            config["street_routing"] = False
+            config["geocoding"] = False
+            config["reverse_geocoding"] = False
+
+        if arguments.import_only or arguments.no_tiles:
+            config.pop("tiles", None)
+        elif "tiles" in config:
             tile_profile = find_motis_asset("tiles-profiles/full.lua")
             if tile_profile:
                 config["tiles"]["profile"] = tile_profile
+            if arguments.coastline:
+                config["tiles"]["coastline"] = arguments.coastline
+            else:
+                # No coastline provided, remove tiles (coastline is required)
+                config.pop("tiles", None)
 
         config["timetable"].yaml_set_comment_before_after_key(
             "datasets", before="Modified by generate-motis-config.py"
