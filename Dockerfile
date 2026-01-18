@@ -10,7 +10,6 @@ RUN apt-get update \
   bzip2 \
   git \
   python3 \
-  python3-pip \
   python3-dev \
   pkg-config \
   rsync \
@@ -21,14 +20,18 @@ RUN apt-get update \
   libxml2-dev \
   libxslt1-dev \
   zlib1g-dev \
+  python3-requests \
+  python3-ruamel.yaml \
+  python3-pycountry \
+  python3-bs4 \
+  python3-lxml \
+  python3-license-expression \
+  python3-tz \
   && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/motis /var/lib/motis \
   && curl -fsSL "https://github.com/motis-project/motis/releases/download/${MOTIS_VERSION}/motis-linux-amd64.tar.bz2" \
   | tar -C /opt/motis -xj
-
-RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel \
-  && pip3 install --no-cache-dir requests ruamel.yaml==0.18.17 pycountry beautifulsoup4 lxml license-expression tzdata
 
 ENV BUN_INSTALL=/usr/local/bun
 RUN curl -fsSL https://bun.sh/install | bash
