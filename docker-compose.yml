@@ -1,0 +1,34 @@
+services:
+  motis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MOTIS_VERSION: ${MOTIS_VERSION:-v2.7.0}
+    ports:
+      - "8080:8080"
+    environment:
+      MOTIS_CONFIG: /var/lib/motis/config.yml
+    volumes:
+      - ./out:/var/lib/motis
+  motis-updater:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MOTIS_VERSION: ${MOTIS_VERSION:-v2.7.0}
+    environment:
+      MOTIS_CONFIG: /var/lib/motis/config.yml
+      UPDATE_TZ: ${UPDATE_TZ:-UTC}
+      UPDATE_CRON: ${UPDATE_CRON:-0 2 * * *}
+      RUN_ON_START: ${RUN_ON_START:-true}
+      REGIONS: ${REGIONS:-}
+      OSM_URL: ${OSM_URL:-}
+      OSM_FILE: ${OSM_FILE:-}
+      COASTLINE_URL: ${COASTLINE_URL:-}
+      COASTLINE_FILE: ${COASTLINE_FILE:-}
+      FORCE_OSM_DOWNLOAD: ${FORCE_OSM_DOWNLOAD:-false}
+      FORCE_COASTLINE_DOWNLOAD: ${FORCE_COASTLINE_DOWNLOAD:-false}
+    volumes:
+      - ./out:/var/lib/motis
+    command: ["bun", "/opt/transitous/motis/update_scheduler.ts"]
