@@ -41,6 +41,11 @@ Coolify should map its persistent storage to the `out/` directory so the contain
 
 * `MOTIS_VERSION`: release tag for the MOTIS binary (default `v2.7.0`).
 
+### Service ports
+
+* `MOTIS_PORT`: host port mapped to the MOTIS container (default `8080`). Use this if
+  `8080` is already taken on the host.
+
 ## Automated nightly updates (Coolify)
 
 Enable the `motis-updater` service in Coolify and set the following environment variables
