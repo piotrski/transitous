@@ -37,6 +37,10 @@ docker compose up --build
 Coolify should map its persistent storage to the `out/` directory so the container sees
 `/var/lib/motis/config.yml` and `/var/lib/motis/data`.
 
+### Build arguments
+
+* `MOTIS_VERSION`: release tag for the MOTIS binary (default `v2.7.0`).
+
 ## Automated nightly updates (Coolify)
 
 Enable the `motis-updater` service in Coolify and set the following environment variables
@@ -79,8 +83,8 @@ For a Poland-only deployment that updates nightly at 02:00 (UTC), set:
   `motis-updater` services.
 * The build requires Python dependencies (such as `lxml`) that compile native extensions,
   so the Dockerfile installs build tools and system headers to avoid pip failures in Coolify.
+* Make sure the updater service is enabled in Coolify if you want automated nightly imports.
 
 ## Configuration
 
-* `MOTIS_VERSION`: release tag for the MOTIS binary (default `v2.7.0`).
 * `MOTIS_CONFIG`: config path inside the container (default `/var/lib/motis/config.yml`).
