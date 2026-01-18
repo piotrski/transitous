@@ -42,15 +42,19 @@ ENV PATH=${BUN_INSTALL}/bin:$PATH
 ENV PATH=/opt/motis:$PATH
 WORKDIR /opt/transitous
 
-COPY .gitmodules .gitmodules
-COPY .git .git
-RUN git submodule update --init --recursive --depth 1 transitland-atlas \
-  && rm -rf .git
-
 COPY feeds/ feeds/
 COPY motis/config.yml motis/config.yml
 COPY scripts/ scripts/
 COPY src/ src/
+COPY transitland-atlas/ transitland-atlas/
+RUN if [ ! -d "/opt/transitous/transitland-atlas/feeds" ]; then \
+  if [ -f "/opt/transitous/.gitmodules" ] && [ -d "/opt/transitous/.git" ]; then \
+    git submodule update --init --recursive --depth 1 transitland-atlas; \
+  else \
+    echo "transitland-atlas submodule missing; cloning fresh copy."; \
+    git clone --depth 1 https://github.com/transitland/transitland-atlas /opt/transitous/transitland-atlas; \
+  fi; \
+fi
 
 COPY motis/entrypoint.sh /usr/local/bin/motis-entrypoint
 COPY motis/update_data.ts /opt/transitous/motis/update_data.ts
