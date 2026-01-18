@@ -28,6 +28,8 @@ RUN apt-get update \
   python3-license-expression \
   python3-tz \
   && rm -rf /var/lib/apt/lists/*
+RUN wget -O /usr/local/bin/gtfsclean https://github.com/public-transport/gtfsclean/releases/latest/download/gtfsclean \
+  && chmod +x /usr/local/bin/gtfsclean
 
 RUN mkdir -p /opt/motis /var/lib/motis \
   && curl -fsSL "https://github.com/motis-project/motis/releases/download/${MOTIS_VERSION}/motis-linux-amd64.tar.bz2" \
@@ -40,11 +42,15 @@ ENV PATH=${BUN_INSTALL}/bin:$PATH
 ENV PATH=/opt/motis:$PATH
 WORKDIR /opt/transitous
 
+COPY .gitmodules .gitmodules
+COPY .git .git
+RUN git submodule update --init --recursive --depth 1 transitland-atlas \
+  && rm -rf .git
+
 COPY feeds/ feeds/
 COPY motis/config.yml motis/config.yml
 COPY scripts/ scripts/
 COPY src/ src/
-COPY transitland-atlas/ transitland-atlas/
 
 COPY motis/entrypoint.sh /usr/local/bin/motis-entrypoint
 COPY motis/update_data.ts /opt/transitous/motis/update_data.ts
