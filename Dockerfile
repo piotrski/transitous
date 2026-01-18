@@ -4,7 +4,20 @@ FROM debian:bookworm-slim
 ARG MOTIS_VERSION=v2.7.0
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl bzip2 git python3 python3-pip rsync wget unzip \
+  && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  bzip2 \
+  git \
+  python3 \
+  python3-pip \
+  python3-dev \
+  rsync \
+  wget \
+  unzip \
+  build-essential \
+  libxml2-dev \
+  libxslt1-dev \
   && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/motis /var/lib/motis \

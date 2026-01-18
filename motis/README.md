@@ -42,11 +42,19 @@ Coolify should map its persistent storage to the `out/` directory so the contain
 Enable the `motis-updater` service in Coolify and set the following environment variables
 for automated downloads and nightly imports:
 
+### Required
+
+* `REGIONS`: space-separated list of region codes (e.g. `de fr ch`). When omitted, all
+  regions in `feeds/` are processed.
+
+### Scheduling
+
 * `UPDATE_TZ`: time zone for scheduling (default `UTC`).
 * `UPDATE_CRON`: cron expression (`minute hour * * *`, default `0 2 * * *`).
 * `RUN_ON_START`: run an update when the container starts (default `true`).
-* `REGIONS`: space-separated list of region codes (e.g. `de fr ch`). When omitted, all
-  regions in `feeds/` are processed.
+
+### Optional downloads (cached in the shared volume)
+
 * `OSM_URL`: optional OSM extract URL (downloaded into the volume if missing).
 * `OSM_FILE`: optional override for the downloaded OSM file path.
 * `COASTLINE_URL`: optional coastline zip URL (downloaded into the volume if missing).
@@ -64,6 +72,13 @@ For a Poland-only deployment that updates nightly at 02:00 (UTC), set:
 * `REGIONS=pl`
 * `OSM_URL=https://download.geofabrik.de/europe/poland-latest.osm.pbf`
 * `COASTLINE_URL=https://osmdata.openstreetmap.de/download/land-polygons-complete-4326.zip`
+
+### Coolify notes
+
+* Ensure the `out/` directory is a persistent volume shared by both the `motis` and
+  `motis-updater` services.
+* The build requires Python dependencies (such as `lxml`) that compile native extensions,
+  so the Dockerfile installs build tools and system headers to avoid pip failures in Coolify.
 
 ## Configuration
 
